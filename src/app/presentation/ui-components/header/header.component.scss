@@ -71,3 +71,48 @@ app-help-modal {
     pointer-events: all;
   }
 }
+
+// Mobile optimizations
+@media (max-width: 768px) {
+  :host {
+    padding: 0 0.5rem;
+  }
+
+  h1 {
+    font-size: 1.2rem;
+    padding: 0.75rem 0;
+  }
+
+  .right-side {
+    gap: 8px;
+    padding-right: 4px;
+
+    .help-button {
+      width: 32px;
+      height: 32px;
+      flex-shrink: 0;
+
+      svg {
+        width: 18px;
+        height: 18px;
+      }
+    }
+
+    .username {
+      font-size: 0.9rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 120px;
+    }
+
+    cta-button {
+      ::ng-deep button {
+        min-width: 80px;
+        font-size: 13px;
+        padding: 8px 12px;
+        height: 36px;
+      }
+    }
+  }
+}

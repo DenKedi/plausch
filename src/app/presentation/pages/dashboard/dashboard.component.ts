@@ -81,7 +81,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
         // Track active chat to prevent unread badge on open chats
         this.selectFriendService.selectedFriend.subscribe((friend) => {
           if (friend) {
-            const chat = this.user?.chats.find(c => c.friendId === friend._id);
+            const chat = this.user?.chats.find(
+              (c) => c.friendId === friend._id
+            );
             this.currentActiveChatId = chat?.chatId;
           } else {
             this.currentActiveChatId = undefined;
@@ -95,7 +97,10 @@ export class DashboardComponent implements OnInit, OnDestroy {
             // Only mark as unread if:
             // 1. Message is not from current user
             // 2. Chat is not currently active
-            if (data.message.from !== this.user?._id && data.chatId !== this.currentActiveChatId) {
+            if (
+              data.message.from !== this.user?._id &&
+              data.chatId !== this.currentActiveChatId
+            ) {
               this.unreadChats.add(data.chatId);
             }
           });
