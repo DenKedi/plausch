@@ -5,6 +5,7 @@
       <friends-tile
         [user]="friend"
         [ngClass]="{ 'selected': friend === selectedFriend }"
+        [hasUnread]="hasUnreadMessages(friend._id)"
         (click)=selectFriend(friend)
       ></friends-tile>
     }

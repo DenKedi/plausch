@@ -14,6 +14,9 @@
           [friends]="friends"
           (showSearchModalEvent)="showSearchModal()"
           [showHint]="this.user.pendingRequests.length > 0"
+          [unreadChats]="unreadChats"
+          [user]="this.user"
+          (friendSelected)="markChatAsRead($event)"
         >
         </friends-list>
       }

@@ -14,6 +14,7 @@ export class SocketService {
   private errorSubject = new Subject<string>();
   private newMessageSubject = new Subject<Message>();
   private storedMessagesSubject = new Subject<Chat>();
+  private friendRequestSubject = new Subject<any>();
 
   public connect(): void {
     const token = localStorage.getItem('authToken');
@@ -50,6 +51,10 @@ export class SocketService {
 
       this.storedMessagesSubject.next({ ...data, messages });
     });
+
+    this.socket.on('friendRequest', (data: any) => {
+      this.friendRequestSubject.next(data);
+    });
   }
 
   public joinRoom(chatId: string): void {
@@ -74,6 +79,10 @@ export class SocketService {
 
   public onError(): Observable<string> {
     return this.errorSubject.asObservable();
+  }
+
+  public onFriendRequest(): Observable<any> {
+    return this.friendRequestSubject.asObservable();
   }
 
   public disconnect(): void {

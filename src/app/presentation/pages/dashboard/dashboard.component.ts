@@ -37,6 +37,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   public isSearchModalVisible = false;
   public isFriendsListVisible = true;
   public showFirstTimeHelp = false;
+  public unreadChats: Set<string> = new Set();
 
   public isMobileView: boolean = false;
 
@@ -61,6 +62,24 @@ export class DashboardComponent implements OnInit, OnDestroy {
         if (!this.user.hasSeenTutorial) {
           this.showFirstTimeHelp = true;
         }
+
+        // Listen for friend requests
+        this.socketService.onFriendRequest().subscribe(async (data) => {
+          // Only process if this user is the receiver
+          if (data.receiverId === this.user?._id) {
+            // Refresh user data to get updated pending requests
+            const token = localStorage.getItem('authToken');
+            if (token) {
+              this.user = await this.userService.getUserByToken(token);
+            }
+          }
+        });
+
+        // Listen for new messages to track unread
+        this.socketService.onNewMessage().subscribe((data: { message: any, chatId: string }) => {
+          // Add chatId to unread set
+          this.unreadChats.add(data.chatId);
+        });
 
         for (let friendId of this.user.friends) {
           const friend = await this.userService.getUserById(friendId);
@@ -120,6 +139,22 @@ export class DashboardComponent implements OnInit, OnDestroy {
       }
     } catch (error) {
       console.error('Error marking tutorial as seen:', error);
+    }
+  }
+
+  public getChatIdForFriend(friendId: string): string | undefined {
+    return this.user?.chats.find(chat => chat.friendId === friendId)?.chatId;
+  }
+
+  public hasUnreadMessages(friendId: string): boolean {
+    const chatId = this.getChatIdForFriend(friendId);
+    return chatId ? this.unreadChats.has(chatId) : false;
+  }
+
+  public markChatAsRead(friendId: string): void {
+    const chatId = this.getChatIdForFriend(friendId);
+    if (chatId) {
+      this.unreadChats.delete(chatId);
     }
   }
 }

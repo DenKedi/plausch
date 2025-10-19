@@ -10,4 +10,5 @@ import {User} from "../../../../../data-domain/models/user.model";
 })
 export class FriendsTileComponent {
   public user = input.required<User>();
+  public hasUnread = input<boolean>(false);
 }

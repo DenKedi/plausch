@@ -1,3 +1,8 @@
 @if (this.user()) {
-  <p>{{ this.user().displayed_name }}</p>
+  <div class="friend-tile-content">
+    <p>{{ this.user().displayed_name }}</p>
+    @if (hasUnread()) {
+      <div class="unread-badge"></div>
+    }
+  </div>
 }

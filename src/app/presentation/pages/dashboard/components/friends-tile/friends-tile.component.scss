@@ -17,3 +17,25 @@
 :host(:hover) {
   background-color: rgba($secondary-color, 0.2);
 }
+
+.friend-tile-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 12px;
+  position: relative;
+
+  p {
+    margin: 0;
+  }
+}
+
+.unread-badge {
+  width: 12px;
+  height: 12px;
+  background-color: #ff6666;
+  border-radius: 50%;
+  border: 2px solid $background-color;
+  flex-shrink: 0;
+}

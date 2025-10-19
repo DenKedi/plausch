@@ -74,7 +74,13 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   public addNewMessageSubscription(): void {
-    const newMessageSubscription = this.socketService.onNewMessage().subscribe((message: Message) => {
+    const newMessageSubscription = this.socketService.onNewMessage().subscribe((data: { message: Message, chatId: string }) => {
+      // Only add message if it belongs to the current chat
+      if (data.chatId !== this.chatId) {
+        return;
+      }
+
+      const message = data.message;
       const dateKey = new Date(message.timestamp).toISOString().split("T")[0];
 
       if (!this.groupedMessages[dateKey]) {

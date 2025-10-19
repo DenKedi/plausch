@@ -21,9 +21,14 @@ export class FriendsListComponent {
 
   public friends = input.required<User[]>();
   public showHint = input.required<boolean>();
+  public unreadChats = input.required<Set<string>>();
+  public user = input.required<User>();
 
   @Output()
   public showSearchModalEvent = new EventEmitter<void>();
+
+  @Output()
+  public friendSelected = new EventEmitter<string>();
 
   public selectedFriend: User | undefined;
 
@@ -38,5 +43,11 @@ export class FriendsListComponent {
 
     this.selectedFriend = friend;
     this.selectFriendService.selectFriend(friend);
+    this.friendSelected.emit(friend._id);
+  }
+
+  public hasUnreadMessages(friendId: string): boolean {
+    const chatId = this.user().chats.find(chat => chat.friendId === friendId)?.chatId;
+    return chatId ? this.unreadChats().has(chatId) : false;
   }
 }
