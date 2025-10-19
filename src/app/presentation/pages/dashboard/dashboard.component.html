@@ -33,6 +33,10 @@
         [userFriends]="this.friends"
       ></search-friend-modal>
     }
+
+    @if (this.showFirstTimeHelp) {
+      <app-help-modal [userId]="this.user.user_id" (close)="closeFirstTimeHelp()"></app-help-modal>
+    }
   </main>
 }
 

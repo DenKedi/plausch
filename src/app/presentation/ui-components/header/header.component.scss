@@ -1,14 +1,17 @@
-@import '../../../../styles/colors';
+@import "../../../../styles/colors";
 
 :host {
   display: flex;
   justify-content: space-between;
   align-items: center;
   background: $background-color;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0 1rem;
 }
 
 h1 {
-  padding: 1rem;
+  padding: 1rem 0;
   color: $primary-color;
   margin: 0;
   cursor: pointer;
@@ -17,6 +20,38 @@ h1 {
 .right-side {
   display: flex;
   align-items: center;
+  gap: 12px;
+  padding-right: 8px;
+
+  .help-button {
+    background: none;
+    border: 2px solid $primary-color;
+    border-radius: 50%;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: $primary-color;
+    transition: all 0.2s;
+    padding: 0;
+
+    &:hover {
+      background-color: $primary-color;
+      color: white;
+      transform: scale(1.05);
+    }
+
+    &:active {
+      transform: scale(0.95);
+    }
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
 
   .username {
     font-weight: bold;
@@ -24,6 +59,15 @@ h1 {
   }
 
   cta-button {
-    margin-left: 10px;
+    margin-left: 0;
+  }
+}
+
+app-help-modal {
+  position: absolute;
+  pointer-events: none;
+  
+  ::ng-deep .modal-backdrop {
+    pointer-events: all;
   }
 }

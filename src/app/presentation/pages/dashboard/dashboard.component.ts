@@ -1,16 +1,19 @@
 import { Component, HostListener, OnDestroy, OnInit } from '@angular/core';
-import { UserService } from "../../../services/user.service";
-import { User } from "../../../data-domain/models/user.model";
-import { HeaderComponent } from "../../ui-components/header/header.component";
-import { FooterComponent } from "../../ui-components/footer/footer.component";
-import { SocketService } from "../../../services/socket.service";
-import { ChatComponent } from "./components/chat/chat.component";
-import { SearchFriendModalComponent } from "./components/search-friend-modal/search-friend-modal.component";
-import { FriendsListComponent } from "./components/friends-list/friends-list.component";
-import { LogoutService } from "../../../services/logout.service";
-import { Router } from "@angular/router";
-import { NgClass } from "@angular/common";
-import {ToggleComponent} from "../../ui-components/toggle/toggle.component";
+import { UserService } from '../../../services/user.service';
+import { User } from '../../../data-domain/models/user.model';
+import { HeaderComponent } from '../../ui-components/header/header.component';
+import { FooterComponent } from '../../ui-components/footer/footer.component';
+import { SocketService } from '../../../services/socket.service';
+import { ChatComponent } from './components/chat/chat.component';
+import { SearchFriendModalComponent } from './components/search-friend-modal/search-friend-modal.component';
+import { FriendsListComponent } from './components/friends-list/friends-list.component';
+import { HelpModalComponent } from '../../ui-components/help-modal/help-modal.component';
+import { LogoutService } from '../../../services/logout.service';
+import { Router } from '@angular/router';
+import { NgClass } from '@angular/common';
+import { ToggleComponent } from '../../ui-components/toggle/toggle.component';
+import axios from 'axios';
+import { environment } from '../../../../environment/environment';
 
 @Component({
   selector: 'app-dashboard',
@@ -20,18 +23,20 @@ import {ToggleComponent} from "../../ui-components/toggle/toggle.component";
     ChatComponent,
     SearchFriendModalComponent,
     FriendsListComponent,
+    HelpModalComponent,
     NgClass,
-    ToggleComponent
+    ToggleComponent,
   ],
   templateUrl: './dashboard.component.html',
   standalone: true,
-  styleUrl: './dashboard.component.scss'
+  styleUrl: './dashboard.component.scss',
 })
 export class DashboardComponent implements OnInit, OnDestroy {
   public user: User | undefined;
   public friends: User[] = [];
   public isSearchModalVisible = false;
   public isFriendsListVisible = true;
+  public showFirstTimeHelp = false;
 
   public isMobileView: boolean = false;
 
@@ -39,7 +44,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private userService: UserService,
     private socketService: SocketService,
     private logoutService: LogoutService,
-    private router: Router,
+    private router: Router
   ) {}
 
   public async ngOnInit(): Promise<void> {
@@ -51,6 +56,11 @@ export class DashboardComponent implements OnInit, OnDestroy {
       try {
         this.user = await this.userService.getUserByToken(token);
         this.socketService.connect();
+
+        // Check if user should see first-time tutorial
+        if (!this.user.hasSeenTutorial) {
+          this.showFirstTimeHelp = true;
+        }
 
         for (let friendId of this.user.friends) {
           const friend = await this.userService.getUserById(friendId);
@@ -86,5 +96,30 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   public closeSearchModal(): void {
     this.isSearchModalVisible = false;
+  }
+
+  public async closeFirstTimeHelp(): Promise<void> {
+    this.showFirstTimeHelp = false;
+
+    // Mark tutorial as seen in backend
+    try {
+      const token = localStorage.getItem('authToken');
+      await axios.post(
+        `${environment.apiBaseUrl}api/user/tutorial-seen`,
+        {},
+        {
+          headers: {
+            'x-auth-token': token,
+          },
+        }
+      );
+
+      // Update local user object
+      if (this.user) {
+        this.user.hasSeenTutorial = true;
+      }
+    } catch (error) {
+      console.error('Error marking tutorial as seen:', error);
+    }
   }
 }

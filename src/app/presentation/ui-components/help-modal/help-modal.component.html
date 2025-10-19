@@ -1,0 +1,32 @@
+<div class="modal-backdrop" (click)="onBackdropClick($event)">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>Freunde hinzufügen</h3>
+      <button class="close-button" (click)="onClose()" aria-label="Schließen">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      @if (userId) {
+        <p>Ihr fügt Freunde über eure User-ID hinzu (Bei dir die <strong>#{{ userId }}</strong>)</p>
+      } @else {
+        <p>Ihr fügt Freunde über eure User-ID hinzu</p>
+      }
+      <ol>
+        <li>Frage deinen Freund nach seiner User-ID</li>
+        <li>Gib die ID im Suchfeld ein</li>
+        <li>Sende eine Freundschaftsanfrage</li>
+        <li>Warte auf die Bestätigung</li>
+      </ol>
+      <p class="help-tip">Wichtig: Aktiviere den Toggle "Für Suche sichtbar" in deinem Profil, damit andere dich über deine User-ID finden können.</p>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn-dismiss" (click)="onClose()">Verstanden</button>
+    </div>
+  </div>
+</div>
