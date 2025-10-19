@@ -18,11 +18,18 @@ export class RegisterService {
     } catch (error) {
       if (error instanceof AxiosError) {
         const errorData = error.response?.data;
-        // Return both message and userStatus for special handling
-        return {
-          msg: errorData?.msg || 'Ein Fehler ist aufgetreten',
-          userStatus: errorData?.userStatus
-        };
+        const status = error.response?.status;
+        
+        // 409 means user exists (either confirmed or unconfirmed) - treat as success for UI
+        if (status === 409 && errorData?.userStatus) {
+          return {
+            msg: errorData.msg,
+            userStatus: errorData.userStatus
+          };
+        }
+        
+        // Other errors - throw
+        throw new Error(errorData?.msg || 'Ein Fehler ist aufgetreten');
       }
 
       throw new Error('Ein unerwarteter Fehler ist aufgetreten');
