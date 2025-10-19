@@ -1,20 +1,16 @@
 import { Component, EventEmitter, input, Output } from '@angular/core';
-import { User } from "../../../../../data-domain/models/user.model";
-import { FriendsTileComponent } from "../friends-tile/friends-tile.component";
-import { NgClass } from "@angular/common";
-import { SelectFriendService } from "../../../../../services/select-friend.service";
-import { CtaButtonComponent } from "../../../../ui-components/cta-button/cta-button.component";
+import { User } from '../../../../../data-domain/models/user.model';
+import { FriendsTileComponent } from '../friends-tile/friends-tile.component';
+import { NgClass } from '@angular/common';
+import { SelectFriendService } from '../../../../../services/select-friend.service';
+import { CtaButtonComponent } from '../../../../ui-components/cta-button/cta-button.component';
 
 @Component({
   selector: 'friends-list',
   standalone: true,
-    imports: [
-        FriendsTileComponent,
-        NgClass,
-        CtaButtonComponent
-    ],
+  imports: [FriendsTileComponent, NgClass, CtaButtonComponent],
   templateUrl: './friends-list.component.html',
-  styleUrl: './friends-list.component.scss'
+  styleUrl: './friends-list.component.scss',
 })
 export class FriendsListComponent {
   public constructor(private selectFriendService: SelectFriendService) {}
@@ -47,7 +43,9 @@ export class FriendsListComponent {
   }
 
   public hasUnreadMessages(friendId: string): boolean {
-    const chatId = this.user().chats.find(chat => chat.friendId === friendId)?.chatId;
+    const chatId = this.user().chats.find(
+      (chat) => chat.friendId === friendId
+    )?.chatId;
     return chatId ? this.unreadChats().has(chatId) : false;
   }
 }

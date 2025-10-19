@@ -12,6 +12,7 @@ import { LogoutService } from '../../../services/logout.service';
 import { Router } from '@angular/router';
 import { NgClass } from '@angular/common';
 import { ToggleComponent } from '../../ui-components/toggle/toggle.component';
+import { SelectFriendService } from '../../../services/select-friend.service';
 import axios from 'axios';
 import { environment } from '../../../../environment/environment';
 
@@ -38,6 +39,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   public isFriendsListVisible = true;
   public showFirstTimeHelp = false;
   public unreadChats: Set<string> = new Set();
+  private currentActiveChatId: string | undefined;
 
   public isMobileView: boolean = false;
 
@@ -45,7 +47,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
     private userService: UserService,
     private socketService: SocketService,
     private logoutService: LogoutService,
-    private router: Router
+    private router: Router,
+    private selectFriendService: SelectFriendService
   ) {}
 
   public async ngOnInit(): Promise<void> {
@@ -75,11 +78,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
           }
         });
 
-        // Listen for new messages to track unread
-        this.socketService.onNewMessage().subscribe((data: { message: any, chatId: string }) => {
-          // Add chatId to unread set
-          this.unreadChats.add(data.chatId);
+        // Track active chat to prevent unread badge on open chats
+        this.selectFriendService.selectedFriend.subscribe((friend) => {
+          if (friend) {
+            const chat = this.user?.chats.find(c => c.friendId === friend._id);
+            this.currentActiveChatId = chat?.chatId;
+          } else {
+            this.currentActiveChatId = undefined;
+          }
         });
+
+        // Listen for new messages to track unread
+        this.socketService
+          .onNewMessage()
+          .subscribe((data: { message: any; chatId: string }) => {
+            // Only mark as unread if:
+            // 1. Message is not from current user
+            // 2. Chat is not currently active
+            if (data.message.from !== this.user?._id && data.chatId !== this.currentActiveChatId) {
+              this.unreadChats.add(data.chatId);
+            }
+          });
 
         for (let friendId of this.user.friends) {
           const friend = await this.userService.getUserById(friendId);
@@ -143,7 +162,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   }
 
   public getChatIdForFriend(friendId: string): string | undefined {
-    return this.user?.chats.find(chat => chat.friendId === friendId)?.chatId;
+    return this.user?.chats.find((chat) => chat.friendId === friendId)?.chatId;
   }
 
   public hasUnreadMessages(friendId: string): boolean {
