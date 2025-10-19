@@ -1,10 +1,10 @@
 import { Injectable } from '@angular/core';
 import { io, Socket } from 'socket.io-client';
 import { Observable, Subject } from 'rxjs';
-import { Message } from "../data-domain/models/message.model";
-import { Chat } from "../data-domain/models/chat.model";
-import { flattenObject } from "../utils/flatten-object";
-import { environment } from "../../environment/environment";
+import { Message } from '../data-domain/models/message.model';
+import { Chat } from '../data-domain/models/chat.model';
+import { flattenObject } from '../utils/flatten-object';
+import { environment } from '../../environment/environment';
 
 @Injectable({
   providedIn: 'root',
@@ -44,11 +44,11 @@ export class SocketService {
     });
 
     this.socket.on('chatData', (data: Chat) => {
-      const messages: Message[] = data.messages.map((message => {
+      const messages: Message[] = data.messages.map((message) => {
         return flattenObject(message);
-      }))
+      });
 
-      this.storedMessagesSubject.next({...data, messages});
+      this.storedMessagesSubject.next({ ...data, messages });
     });
   }
 
