@@ -4,6 +4,7 @@ import { Observable, Subject } from 'rxjs';
 import { Message } from "../data-domain/models/message.model";
 import { Chat } from "../data-domain/models/chat.model";
 import { flattenObject } from "../utils/flatten-object";
+import { environment } from "../../environment/environment";
 
 @Injectable({
   providedIn: 'root',
@@ -17,7 +18,7 @@ export class SocketService {
   public connect(): void {
     const token = localStorage.getItem('authToken');
 
-    this.socket = io('https://plausch-be21aacfcc9f.herokuapp.com/', {
+    this.socket = io(environment.apiBaseUrl, {
       path: '/socket.io',
       withCredentials: true,
       auth: {
