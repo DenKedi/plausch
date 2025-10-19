@@ -1,4 +1,4 @@
 export const environment = {
   production: true,
-  apiBaseUrl: 'https://your-new-heroku-app.herokuapp.com/'  // Update this when you deploy
+  apiBaseUrl: 'https://plausch-0fd7bdce319c.herokuapp.com/'
 };
