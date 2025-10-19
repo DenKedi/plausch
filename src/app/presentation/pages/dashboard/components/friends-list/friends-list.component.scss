@@ -17,7 +17,12 @@ h2 {
 
 .friends-list {
   max-height: 80%;
-  overflow-y: scroll;
+  overflow-y: auto;
+
+  friends-tile {
+    min-height: 60px;
+    padding: 10px 0;
+  }
 }
 
 cta-button {
