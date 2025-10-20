@@ -120,11 +120,16 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.subscriptions.push(newMessageSubscription);
   }
 
-  public sendMessage(): void {
+  public async sendMessage(): Promise<void> {
     if (this.message.trim() && this.chatId) {
-      this.socketService.sendMessage(this.chatId, this.message);
-      this.message = '';
-      this.scrollToBottom();
+      try {
+        await this.socketService.sendMessage(this.chatId, this.message);
+        this.message = '';
+        this.scrollToBottom();
+      } catch (error) {
+        console.error('Failed to send message:', error);
+        // Optionally show error to user
+      }
     }
   }
 
