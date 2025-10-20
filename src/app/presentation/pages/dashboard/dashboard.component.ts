@@ -40,6 +40,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
   public showFirstTimeHelp = false;
   public unreadChats: Set<string> = new Set();
   private currentActiveChatId: string | undefined;
+  private lastMessageTimestamps: Map<string, number> = new Map(); // chatId -> timestamp
 
   public isMobileView: boolean = false;
 
@@ -66,14 +67,38 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.showFirstTimeHelp = true;
         }
 
-        // Listen for friend requests
+        // Listen for friend requests and acceptances
         this.socketService.onFriendRequest().subscribe(async (data) => {
           // Only process if this user is the receiver
           if (data.receiverId === this.user?._id) {
-            // Refresh user data to get updated pending requests
-            const token = localStorage.getItem('authToken');
-            if (token) {
-              this.user = await this.userService.getUserByToken(token);
+            if (data.type === 'accepted') {
+              // Friend request was accepted
+              console.log('✅ Friend request accepted by:', data.accepter.displayed_name);
+              
+              // Refresh user data to get new friend
+              const token = localStorage.getItem('authToken');
+              if (token) {
+                this.user = await this.userService.getUserByToken(token);
+                
+                // Add new friend to friends list
+                const newFriend = await this.userService.getUserById(data.accepter._id);
+                this.friends.push(newFriend);
+              }
+
+              // Show notification
+              this.showFriendAcceptedNotification(data.accepter.displayed_name);
+            } else {
+              // New friend request
+              console.log('📬 New friend request from:', data.sender.displayed_name);
+              
+              // Refresh user data to get updated pending requests
+              const token = localStorage.getItem('authToken');
+              if (token) {
+                this.user = await this.userService.getUserByToken(token);
+              }
+
+              // Show notification
+              this.showFriendRequestNotification(data.sender.displayed_name);
             }
           }
         });
@@ -94,6 +119,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.socketService
           .onNewMessage()
           .subscribe((data: { message: any; chatId: string }) => {
+            // Update last message timestamp for this chat
+            this.lastMessageTimestamps.set(
+              data.chatId,
+              new Date(data.message.timestamp).getTime()
+            );
+
+            // Re-sort friends list by most recent message
+            this.sortFriendsByRecentMessage();
+
             // Only mark as unread if:
             // 1. Message is not from current user
             // 2. Chat is not currently active
@@ -105,10 +139,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
             }
           });
 
+        // Load all friends
         for (let friendId of this.user.friends) {
           const friend = await this.userService.getUserById(friendId);
           this.friends.push(friend);
         }
+
+        // Setup subscription to load timestamps when chat data arrives
+        this.loadLastMessageTimestamps();
       } catch (error) {
         this.logoutService.logout();
         await this.router.navigate(['/home']);
@@ -180,5 +218,85 @@ export class DashboardComponent implements OnInit, OnDestroy {
     if (chatId) {
       this.unreadChats.delete(chatId);
     }
+  }
+
+  /**
+   * Load last message timestamps for all chats from backend
+   * Called when chatData is received via socket
+   */
+  private loadLastMessageTimestamps(): void {
+    // Subscribe to chat data events to extract timestamps
+    this.socketService.onStoredMessages().subscribe((chatData: any) => {
+      if (chatData.messages && chatData.messages.length > 0) {
+        const lastMessage = chatData.messages[chatData.messages.length - 1];
+        this.lastMessageTimestamps.set(
+          chatData._id,
+          new Date(lastMessage.timestamp).getTime()
+        );
+        this.sortFriendsByRecentMessage();
+      }
+    });
+  }
+
+  /**
+   * Sort friends by most recent message (newest first)
+   */
+  private sortFriendsByRecentMessage(): void {
+    this.friends.sort((a, b) => {
+      const chatIdA = this.getChatIdForFriend(a._id);
+      const chatIdB = this.getChatIdForFriend(b._id);
+
+      const timestampA = chatIdA ? this.lastMessageTimestamps.get(chatIdA) || 0 : 0;
+      const timestampB = chatIdB ? this.lastMessageTimestamps.get(chatIdB) || 0 : 0;
+
+      // Sort descending (newest first)
+      return timestampB - timestampA;
+    });
+  }
+
+  /**
+   * Show notification for incoming friend request
+   */
+  private showFriendRequestNotification(senderName: string): void {
+    this.showNotification(
+      'Neue Freundschaftsanfrage',
+      `${senderName} möchte mit dir befreundet sein`
+    );
+  }
+
+  /**
+   * Show notification for accepted friend request
+   */
+  private showFriendAcceptedNotification(accepterName: string): void {
+    this.showNotification(
+      'Freundschaftsanfrage akzeptiert',
+      `${accepterName} hat deine Anfrage akzeptiert! 🎉`
+    );
+  }
+
+  /**
+   * Generic notification helper
+   */
+  private showNotification(title: string, body: string): void {
+    // Try to use browser notifications if permission granted
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, {
+        body: body,
+        icon: '/favicon.ico',
+      });
+    } else if ('Notification' in window && Notification.permission !== 'denied') {
+      // Request permission
+      Notification.requestPermission().then((permission) => {
+        if (permission === 'granted') {
+          new Notification(title, {
+            body: body,
+            icon: '/favicon.ico',
+          });
+        }
+      });
+    }
+
+    // Also log to console
+    console.log(`🔔 ${title}: ${body}`);
   }
 }

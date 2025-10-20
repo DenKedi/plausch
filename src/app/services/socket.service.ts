@@ -100,6 +100,10 @@ export class SocketService {
     this.socket.on('friendRequest', (data: any) => {
       this.friendRequestSubject.next(data);
     });
+
+    this.socket.on('friendRequestAccepted', (data: any) => {
+      this.friendRequestSubject.next({ ...data, type: 'accepted' });
+    });
   }
 
   /**
