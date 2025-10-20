@@ -214,7 +214,7 @@ export class CryptoService {
         'pkcs8',
         privateKeyData,
         this.ALGORITHM_RSA,
-        false,
+        true, // MUST be extractable for multi-device support
         ['decrypt']
       );
 
@@ -247,6 +247,180 @@ export class CryptoService {
    */
   clearKeys(): void {
     this.keyPair = null;
+  }
+
+  /**
+   * Export private key as PEM-encoded string for server storage (encrypted)
+   * IMPORTANT: Only called during key upload - private key stays encrypted on server
+   */
+  async exportPrivateKey(): Promise<string> {
+    if (!this.keyPair?.privateKey) {
+      throw new Error('No private key available');
+    }
+
+    try {
+      const exported = await window.crypto.subtle.exportKey('pkcs8', this.keyPair.privateKey);
+      return this.arrayBufferToPem(exported, 'PRIVATE KEY');
+    } catch (error) {
+      console.error('❌ Error exporting private key:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Import private key from PEM format (used when loading from server)
+   */
+  async importPrivateKey(pemKey: string): Promise<CryptoKey> {
+    try {
+      const binaryKey = this.pemToArrayBuffer(pemKey);
+      return await window.crypto.subtle.importKey(
+        'pkcs8',
+        binaryKey,
+        this.ALGORITHM_RSA,
+        true, // MUST be extractable for multi-device support (re-encryption on login)
+        ['decrypt']
+      );
+    } catch (error) {
+      console.error('❌ Error importing private key:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Decrypt private key from server (encrypted with PBKDF2 password derivative)
+   * @param encryptedPrivateKeyJson - JSON string with { v, algorithm, encrypted, iv, salt, authTag }
+   * @param password - User's password for decryption
+   * @returns Decrypted PEM-encoded private key
+   */
+  async decryptPrivateKeyFromServer(
+    encryptedPrivateKeyJson: string,
+    password: string
+  ): Promise<string> {
+    try {
+      console.log('🔐 Decrypting private key from server...');
+      
+      const encryptedData = JSON.parse(encryptedPrivateKeyJson);
+      
+      // Derive key from password using PBKDF2 (must match backend)
+      const saltBuffer = this.base64ToArrayBuffer(encryptedData.salt);
+      const passwordBuffer = this.stringToArrayBuffer(password);
+      
+      const derivedKey = await window.crypto.subtle.deriveBits(
+        {
+          name: 'PBKDF2',
+          salt: saltBuffer,
+          iterations: 100000,
+          hash: 'SHA-256',
+        },
+        await window.crypto.subtle.importKey('raw', passwordBuffer, 'PBKDF2', false, ['deriveBits']),
+        256 // 256-bit key
+      );
+
+      // Combine encrypted + authTag before decryption
+      const encryptedWithTag = encryptedData.encrypted + this.base64ToArrayBuffer(encryptedData.authTag).toString();
+      
+      // Decrypt using AES-GCM
+      const decrypted = await window.crypto.subtle.decrypt(
+        {
+          name: 'AES-GCM',
+          iv: this.base64ToArrayBuffer(encryptedData.iv),
+          tagLength: 128,
+        },
+        await window.crypto.subtle.importKey('raw', derivedKey, 'AES-GCM', false, ['decrypt']),
+        this.base64ToArrayBuffer(encryptedData.encrypted)
+      );
+
+      const decryptedPem = new TextDecoder().decode(decrypted);
+      console.log('✅ Private key decrypted successfully');
+      return decryptedPem;
+    } catch (error) {
+      console.error('❌ Error decrypting private key:', error);
+      throw new Error('Failed to decrypt private key - invalid password or corrupted data');
+    }
+  }
+
+  /**
+   * Load encrypted private key from server during login
+   * Decrypts it with password and stores in memory
+   * @param encryptedPrivateKeyJson - Encrypted data from server
+   * @param password - User's password
+   */
+  async loadPrivateKeyFromServer(encryptedPrivateKeyJson: string, password: string): Promise<void> {
+    try {
+      console.log('🔑 Loading encrypted private key from server...');
+      
+      const decryptedPem = await this.decryptPrivateKeyFromServer(encryptedPrivateKeyJson, password);
+      
+      // Import private key
+      const privateKey = await this.importPrivateKey(decryptedPem);
+      
+      // Try to load public key from IndexedDB (fallback if not available)
+      let publicKey = this.keyPair?.publicKey;
+      if (!publicKey) {
+        const publicKeyData = await this.getFromIndexedDB('publicKey');
+        if (publicKeyData) {
+          publicKey = await window.crypto.subtle.importKey(
+            'spki',
+            publicKeyData,
+            this.ALGORITHM_RSA,
+            true,
+            ['encrypt']
+          );
+        }
+      }
+
+      // Store both keys in memory for this session
+      this.keyPair = { 
+        privateKey, 
+        publicKey: publicKey || (await window.crypto.subtle.generateKey(
+          this.ALGORITHM_RSA,
+          true,
+          ['encrypt', 'decrypt']
+        ) as CryptoKeyPair).publicKey as CryptoKey
+      };
+
+      console.log('✅ Private key loaded from server');
+    } catch (error) {
+      console.error('❌ Error loading private key from server:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Helper: Convert string to ArrayBuffer
+   */
+  private stringToArrayBuffer(str: string): ArrayBuffer {
+    const buf = new ArrayBuffer(str.length);
+    const bufView = new Uint8Array(buf);
+    for (let i = 0; i < str.length; i++) {
+      bufView[i] = str.charCodeAt(i);
+    }
+    return buf;
+  }
+
+  /**
+   * Clear keys from IndexedDB (on logout or key reset)
+   */
+  async clearKeysFromIndexedDB(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open('PlauschCrypto', 1);
+
+      request.onsuccess = () => {
+        const db = request.result;
+        const transaction = db.transaction(['keys'], 'readwrite');
+        const store = transaction.objectStore('keys');
+
+        store.clear();
+
+        transaction.oncomplete = () => {
+          console.log('✅ Keys cleared from IndexedDB');
+          resolve();
+        };
+        transaction.onerror = () => reject(transaction.error);
+      };
+
+      request.onerror = () => reject(request.error);
+    });
   }
 
   // ============================================
