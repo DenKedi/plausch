@@ -15,6 +15,7 @@ export class SocketService {
   private cryptoService = inject(CryptoService);
   private socket: Socket | undefined;
   private errorSubject = new Subject<string>();
+  private decryptionErrorSubject = new Subject<void>(); // Triggers logout on decrypt failure
   private newMessageSubject = new Subject<{ message: Message; chatId: string }>();
   private storedMessagesSubject = new Subject<Chat>();
   private friendRequestSubject = new Subject<any>();
@@ -144,8 +145,13 @@ export class SocketService {
 
       return { ...message, text: decryptedText };
     } catch (error) {
-      console.error('❌ Error decrypting message:', error);
-      return { ...message, text: '[Failed to decrypt message]' };
+      console.error('❌ CRITICAL: Error decrypting message:', error);
+      console.error('⚠️ Triggering logout due to decryption failure - keys may be corrupted');
+      
+      // Signal that decryption failed - should trigger logout
+      this.decryptionErrorSubject.next();
+      
+      return { ...message, text: '[Failed to decrypt message - logging out...]' };
     }
   }
 
@@ -240,6 +246,10 @@ export class SocketService {
 
   public onError(): Observable<string> {
     return this.errorSubject.asObservable();
+  }
+
+  public onDecryptionError(): Observable<void> {
+    return this.decryptionErrorSubject.asObservable();
   }
 
   public onFriendRequest(): Observable<any> {

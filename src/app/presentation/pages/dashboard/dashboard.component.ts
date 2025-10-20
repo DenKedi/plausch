@@ -67,6 +67,14 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.showFirstTimeHelp = true;
         }
 
+        // Listen for decryption errors - logout if occurs
+        this.socketService.onDecryptionError().subscribe(async () => {
+          console.error('🔓 Decryption error detected - logging out user');
+          alert('Verschlüsselungsfehler erkannt. Du wirst abgemeldet. Bitte melde dich erneut an.');
+          await this.logoutService.logout();
+          await this.router.navigate(['/home']);
+        });
+
         // Listen for friend requests and acceptances
         this.socketService.onFriendRequest().subscribe(async (data) => {
           // Only process if this user is the receiver
