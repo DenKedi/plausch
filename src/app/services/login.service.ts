@@ -37,12 +37,13 @@ export class LoginService {
    * - Tries to load existing private key from IndexedDB
    * - If no key exists, generates new RSA keypair
    * - Uploads public key to server
+   * - Handles migration for existing accounts without keys
    */
   private async setupEncryption(): Promise<void> {
     try {
       console.log('🔐 Setting up encryption...');
 
-      // Try to load existing private key
+      // Try to load existing private key from IndexedDB
       const hasExistingKey = await this.cryptoService.loadPrivateKey();
 
       if (!hasExistingKey) {
@@ -57,7 +58,17 @@ export class LoginService {
 
         console.log('✅ New encryption keys generated and uploaded');
       } else {
-        console.log('✅ Existing encryption keys loaded');
+        console.log('✅ Existing encryption keys loaded from IndexedDB');
+        
+        // Check if user's public key is on server
+        // If not, upload it (migration for existing accounts)
+        try {
+          const userPublicKey = await this.cryptoService.exportPublicKey();
+          await this.uploadPublicKey(userPublicKey);
+          console.log('✅ Public key synchronized with server');
+        } catch (error) {
+          console.warn('⚠️ Could not sync public key:', error);
+        }
       }
     } catch (error) {
       console.error('❌ Encryption setup failed:', error);

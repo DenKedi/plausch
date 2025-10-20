@@ -36,9 +36,9 @@ export class CryptoService {
         ['encrypt', 'decrypt']
       )) as CryptoKeyPair;
 
-      // Store private key in IndexedDB for persistence
-      await this.storePrivateKey(this.keyPair.privateKey);
-      console.log('✅ RSA key pair generated successfully');
+      // Store BOTH private and public key in IndexedDB for persistence
+      await this.storeKeyPair(this.keyPair);
+      console.log('✅ RSA key pair generated and stored successfully');
     } catch (error) {
       console.error('❌ Error generating key pair:', error);
       throw new Error('Failed to generate encryption keys');
@@ -50,7 +50,7 @@ export class CryptoService {
    */
   async exportPublicKey(): Promise<string> {
     if (!this.keyPair?.publicKey) {
-      throw new Error('No keypair available. Call generateKeyPair() first');
+      throw new Error('No public key available. Call generateKeyPair() first');
     }
 
     try {
@@ -202,21 +202,32 @@ export class CryptoService {
    */
   async loadPrivateKey(): Promise<boolean> {
     try {
-      const keyData = await this.getFromIndexedDB('privateKey');
-      if (!keyData) {
+      const privateKeyData = await this.getFromIndexedDB('privateKey');
+      const publicKeyData = await this.getFromIndexedDB('publicKey');
+
+      if (!privateKeyData || !publicKeyData) {
+        console.log('⚠️ No keys found in IndexedDB');
         return false;
       }
 
       const privateKey = await window.crypto.subtle.importKey(
         'pkcs8',
-        keyData,
+        privateKeyData,
         this.ALGORITHM_RSA,
         false,
         ['decrypt']
       );
 
-      this.keyPair = { privateKey, publicKey: null as any };
-      console.log('✅ Private key loaded from IndexedDB');
+      const publicKey = await window.crypto.subtle.importKey(
+        'spki',
+        publicKeyData,
+        this.ALGORITHM_RSA,
+        true,
+        ['encrypt']
+      );
+
+      this.keyPair = { privateKey, publicKey };
+      console.log('✅ Private and public keys loaded from IndexedDB');
       return true;
     } catch (error) {
       console.error('❌ Error loading private key:', error);
@@ -243,14 +254,19 @@ export class CryptoService {
   // ============================================
 
   /**
-   * Store private key in IndexedDB
+   * Store key pair in IndexedDB
    */
-  private async storePrivateKey(privateKey: CryptoKey): Promise<void> {
+  private async storeKeyPair(keyPair: CryptoKeyPair): Promise<void> {
     try {
-      const exported = await window.crypto.subtle.exportKey('pkcs8', privateKey);
-      await this.saveToIndexedDB('privateKey', exported);
+      const privateKeyExported = await window.crypto.subtle.exportKey('pkcs8', keyPair.privateKey);
+      const publicKeyExported = await window.crypto.subtle.exportKey('spki', keyPair.publicKey);
+
+      await this.saveToIndexedDB('privateKey', privateKeyExported);
+      await this.saveToIndexedDB('publicKey', publicKeyExported);
+
+      console.log('✅ Key pair stored in IndexedDB');
     } catch (error) {
-      console.error('❌ Error storing private key:', error);
+      console.error('❌ Error storing key pair:', error);
       throw error;
     }
   }

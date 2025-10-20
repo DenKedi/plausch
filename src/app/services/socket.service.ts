@@ -46,29 +46,53 @@ export class SocketService {
 
     this.socket.on('newMessage', async (data) => {
       try {
+        console.log('📨 Received new message:', data);
+        
+        if (!data || !data.message) {
+          console.error('❌ Invalid message data received:', data);
+          return;
+        }
+
         // Decrypt message if encrypted
         const message = await this.decryptMessageIfNeeded(data.message);
-        this.newMessageSubject.next(message);
+        if (message && message.from) {
+          this.newMessageSubject.next(message);
+        } else {
+          console.error('❌ Message missing required fields:', message);
+        }
       } catch (error) {
-        console.error('Error processing new message:', error);
-        this.errorSubject.next('Failed to decrypt message');
+        console.error('❌ Error processing new message:', error);
+        this.errorSubject.next('Failed to process message');
       }
     });
 
     this.socket.on('chatData', async (data: Chat) => {
       try {
+        console.log('📦 Received chat data with', data.messages?.length || 0, 'messages');
+
+        if (!data || !data.messages) {
+          console.warn('⚠️ Chat data missing messages');
+          return;
+        }
+
         // Decrypt all messages in chat history
         const decryptedMessages: Message[] = await Promise.all(
           data.messages.map(async (message) => {
-            const flattenedMessage = flattenObject(message);
-            return await this.decryptMessageIfNeeded(flattenedMessage);
+            try {
+              const flattenedMessage = flattenObject(message);
+              return await this.decryptMessageIfNeeded(flattenedMessage);
+            } catch (error) {
+              console.error('❌ Error processing message:', message, error);
+              return message;
+            }
           })
         );
 
         this.storedMessagesSubject.next({ ...data, messages: decryptedMessages });
+        console.log('✅ Chat data processed successfully');
       } catch (error) {
-        console.error('Error processing chat data:', error);
-        this.errorSubject.next('Failed to decrypt chat history');
+        console.error('❌ Error processing chat data:', error);
+        this.errorSubject.next('Failed to load chat history');
       }
     });
 
@@ -81,6 +105,11 @@ export class SocketService {
    * Decrypt a message if it's encrypted, otherwise return as-is
    */
   private async decryptMessageIfNeeded(message: any): Promise<Message> {
+    if (!message) {
+      console.error('❌ decryptMessageIfNeeded called with null/undefined message');
+      return {} as Message;
+    }
+
     if (!message.isEncrypted) {
       return message; // Return plain text message as-is
     }
@@ -97,7 +126,7 @@ export class SocketService {
       );
 
       if (!userKey) {
-        console.warn('No encryption key found for current user');
+        console.warn('⚠️ No encryption key found for current user');
         return { ...message, text: '[Encrypted message - cannot decrypt]' };
       }
 
@@ -110,7 +139,7 @@ export class SocketService {
 
       return { ...message, text: decryptedText };
     } catch (error) {
-      console.error('Error decrypting message:', error);
+      console.error('❌ Error decrypting message:', error);
       return { ...message, text: '[Failed to decrypt message]' };
     }
   }
@@ -158,33 +187,41 @@ export class SocketService {
     try {
       // Check if encryption is available
       if (this.cryptoService.hasKeys()) {
-        // Get public keys for all chat participants
-        const publicKeys = await this.getPublicKeysForChat(chatId);
+        try {
+          // Get public keys for all chat participants
+          const publicKeys = await this.getPublicKeysForChat(chatId);
 
-        if (publicKeys.length > 0 && publicKeys.every(pk => pk.publicKey)) {
-          // All participants have public keys - send encrypted
-          const encrypted = await this.cryptoService.encryptMessage(text, publicKeys);
+          if (publicKeys.length > 0 && publicKeys.every(pk => pk.publicKey)) {
+            // All participants have public keys - send encrypted
+            const encrypted = await this.cryptoService.encryptMessage(text, publicKeys);
 
-          this.socket.emit('sendMessage', {
-            chatId,
-            isEncrypted: true,
-            encryptedContent: encrypted.encryptedContent,
-            iv: encrypted.iv,
-            encryptedKeys: encrypted.encryptedKeys,
-          });
+            this.socket.emit('sendMessage', {
+              chatId,
+              isEncrypted: true,
+              encryptedContent: encrypted.encryptedContent,
+              iv: encrypted.iv,
+              encryptedKeys: encrypted.encryptedKeys,
+            });
 
-          console.log('✅ Sent encrypted message');
-          return;
+            console.log('✅ Sent encrypted message');
+            return;
+          } else {
+            // Some participants don't have public keys
+            console.warn('⚠️ Not all participants have public keys. Sending unencrypted.');
+          }
+        } catch (encryptionError) {
+          console.warn('⚠️ Encryption failed, falling back to plain text:', encryptionError);
         }
+      } else {
+        console.warn('⚠️ Crypto service not available. Sending unencrypted.');
       }
 
-      // Fallback to plain text if encryption not available
-      console.warn('⚠️  Sending unencrypted message (encryption not available)');
+      // Fallback to plain text if encryption not available or failed
       this.socket.emit('sendMessage', { chatId, text, isEncrypted: false });
+      console.log('📤 Sent plain text message (fallback)');
     } catch (error) {
       console.error('❌ Error sending message:', error);
-      // Fallback to unencrypted on error
-      this.socket.emit('sendMessage', { chatId, text, isEncrypted: false });
+      throw error;
     }
   }
 
