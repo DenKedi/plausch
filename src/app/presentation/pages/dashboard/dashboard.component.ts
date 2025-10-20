@@ -145,6 +145,9 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.friends.push(friend);
         }
 
+        // Load initial timestamps and sort immediately
+        this.loadInitialMessageTimestamps();
+
         // Setup subscription to load timestamps when chat data arrives
         this.loadLastMessageTimestamps();
       } catch (error) {
@@ -236,6 +239,26 @@ export class DashboardComponent implements OnInit, OnDestroy {
         this.sortFriendsByRecentMessage();
       }
     });
+  }
+
+  /**
+   * Load initial message timestamps from user data for immediate sorting
+   * Called once on dashboard init to sort friends by most recent chat
+   * This loads all chat data via socket to extract timestamps
+   */
+  private loadInitialMessageTimestamps(): void {
+    if (!this.user?.chats) return;
+
+    // Join all chats to load their data
+    for (const chat of this.user.chats) {
+      this.socketService.joinRoom(chat.chatId);
+    }
+
+    // The timestamps will be populated by loadLastMessageTimestamps() subscription
+    // Wait a bit for socket events to arrive before sorting
+    setTimeout(() => {
+      this.sortFriendsByRecentMessage();
+    }, 500);
   }
 
   /**
