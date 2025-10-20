@@ -1,5 +1,6 @@
 import {
   Component,
+  ChangeDetectorRef,
   ElementRef,
   HostListener,
   input,
@@ -52,7 +53,8 @@ export class ChatComponent implements OnInit, OnDestroy {
 
   public constructor(
     private socketService: SocketService,
-    private selectFriendService: SelectFriendService
+    private selectFriendService: SelectFriendService,
+    private cdr: ChangeDetectorRef
   ) {}
 
   public ngOnInit(): void {
@@ -91,8 +93,11 @@ export class ChatComponent implements OnInit, OnDestroy {
         }));
 
         this.groupedMessages = groupMessagesByDate(messages);
-        this.scrollToBottom();
         this.messagesLoaded = true;
+
+        // Wait for Angular to render the messages, then scroll to bottom
+        this.cdr.detectChanges();
+        this.scrollToBottom();
       });
     this.subscriptions.push(storedMessagesSubscription);
   }
@@ -144,12 +149,13 @@ export class ChatComponent implements OnInit, OnDestroy {
   }
 
   private scrollToBottom(): void {
-    setTimeout(() => {
+    // Use requestAnimationFrame for smoother, more reliable scrolling
+    requestAnimationFrame(() => {
       if (this.messageWindow) {
         this.messageWindow.nativeElement.scrollTop =
           this.messageWindow.nativeElement.scrollHeight;
       }
-    }, 100);
+    });
   }
 
   protected readonly Object = Object;
