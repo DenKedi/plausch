@@ -132,8 +132,12 @@ export class SocketService {
       );
 
       if (!userKey) {
-        console.warn('⚠️ No encryption key found for current user');
-        return { ...message, text: '[Encrypted message - cannot decrypt]' };
+        console.warn('⚠️ No encryption key found for current user - cannot decrypt old message');
+        // Fall back to checking if plain text exists (backward compatibility)
+        if (message.text) {
+          return { ...message, text: message.text };
+        }
+        return { ...message, text: '[Encrypted message - no key available]' };
       }
 
       // Decrypt the message
@@ -145,13 +149,18 @@ export class SocketService {
 
       return { ...message, text: decryptedText };
     } catch (error) {
-      console.error('❌ CRITICAL: Error decrypting message:', error);
-      console.error('⚠️ Triggering logout due to decryption failure - keys may be corrupted');
+      console.error('❌ Error decrypting message:', error);
       
-      // Signal that decryption failed - should trigger logout
-      this.decryptionErrorSubject.next();
+      // Instead of auto-logout on decryption error, just show the message as unreadable
+      // This allows users to see chat history even if keys are incompatible
+      console.warn('⚠️ Could not decrypt message - this may be from a previous key version');
       
-      return { ...message, text: '[Failed to decrypt message - logging out...]' };
+      // Fall back to text field if it exists
+      if (message.text) {
+        return { ...message, text: message.text };
+      }
+      
+      return { ...message, text: '[Message could not be decrypted]' };
     }
   }
 
