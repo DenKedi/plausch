@@ -67,12 +67,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
           this.showFirstTimeHelp = true;
         }
 
-        // Listen for decryption errors - logout if occurs
+        // Listen for decryption errors - just warn (don't auto-logout)
+        // This allows users to see chat history even if old messages can't be decrypted
         this.socketService.onDecryptionError().subscribe(async () => {
-          console.error('🔓 Decryption error detected - logging out user');
-          alert('Verschlüsselungsfehler erkannt. Du wirst abgemeldet. Bitte melde dich erneut an.');
-          await this.logoutService.logout();
-          await this.router.navigate(['/home']);
+          console.warn('⚠️ Decryption error detected - old message key version incompatible');
+          // Don't logout - allow graceful fallback in socket.service
+          // User can still chat, old messages will show as unreadable
         });
 
         // Listen for friend requests and acceptances
