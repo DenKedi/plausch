@@ -15,7 +15,7 @@ export class SocketService {
   private cryptoService = inject(CryptoService);
   private socket: Socket | undefined;
   private errorSubject = new Subject<string>();
-  private newMessageSubject = new Subject<Message>();
+  private newMessageSubject = new Subject<{ message: Message; chatId: string }>();
   private storedMessagesSubject = new Subject<Chat>();
   private friendRequestSubject = new Subject<any>();
   private currentUserId: string | null = null;
@@ -56,7 +56,8 @@ export class SocketService {
         // Decrypt message if encrypted
         const message = await this.decryptMessageIfNeeded(data.message);
         if (message && message.from) {
-          this.newMessageSubject.next(message);
+          // Pass both message and chatId to subscribers
+          this.newMessageSubject.next({ message, chatId: data.chatId });
         } else {
           console.error('❌ Message missing required fields:', message);
         }
